@@ -8,6 +8,7 @@ use std::ops::Sub;
 use chrono::{DateTime, Local, TimeZone, Duration};
 use std::process::exit;
 
+
 fn most_recent_folder( src_path : &Path ) -> PathBuf {
     let default_sys_time = SystemTime::now().sub(std::time::Duration::from_secs(30*24*60*60) );
 
@@ -86,10 +87,20 @@ fn main() {
     }
 
 
+
     // Find the most recent folder among the current folders.
     let recent_path = most_recent_folder(&Path::new(&folder_to_backup));
 
     // Run the scp command for the given folder
+
+    let _exit_status = Exec::cmd("sshpass")
+        .arg(folder_to_backup.to_str().unwrap().to_owned())
+        .arg("")
+        .arg("-l")
+        .arg("denis")
+        .join();
+
+
     println!("Hello, world! {:?}", &recent_path);
 }
 
