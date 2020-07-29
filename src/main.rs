@@ -1,13 +1,14 @@
 
-use std::env;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::{SystemTime,UNIX_EPOCH};
 use std::ops::Sub;
 use chrono::{DateTime, Local, TimeZone, Duration};
-use std::process::exit;
+use subprocess::Exec;
 
+mod arg_params;
+use crate::arg_params::{parse_args};
 
 fn most_recent_folder( src_path : &Path ) -> PathBuf {
     let default_sys_time = SystemTime::now().sub(std::time::Duration::from_secs(30*24*60*60) );
@@ -24,20 +25,20 @@ fn most_recent_folder( src_path : &Path ) -> PathBuf {
 
         let metadata = fs::metadata(&path).unwrap();
 
-        dbg!(&path);
+        // dbg!(&path);
 
         if metadata.is_dir() {
             let creation_date = metadata.created().unwrap_or(default_sys_time);
             let dt : DateTime<Local>  = system_time_to_date_time(creation_date);
 
-            dbg!(dt, current_date);
+            //dbg!(dt, current_date);
 
             if dt.gt(&current_date) {
                 current_date = DateTime::from(dt);
                 recent_path = PathBuf::from(path );
 
-                println!("new current date : ");
-                dbg!(current_date, &recent_path);
+                //println!("new current date : ");
+                //dbg!(current_date, &recent_path);
             }
         }
     }
@@ -63,63 +64,35 @@ fn system_time_to_date_time(t: SystemTime) -> DateTime<Local> {
     Local.timestamp(sec, nsec)
 }
 
+static PASS : obfstr::ObfString<[u8; 21]> = obfstr::obfconst!( "il faut viser la lune" );
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    let args: Vec<String> = env::args().collect();
-    let mut folder_to_backup : String = String::default();
-
-    if args.len() < 2 {
-        println!("{}", show_help());
-        exit(45);
-    } else {
-
-        let option : &String = &args[1];
-        match option.as_ref() {
-            "-f" => folder_to_backup = String::from(&args[2] ),
-            _ => println!("Wrong argument"),
-        }
-
-        if folder_to_backup.is_empty() {
-            println!("-f <folder> is required");
-            exit(30);
-        }
-    }
-
-
+    let params = parse_args()?;
 
     // Find the most recent folder among the current folders.
-    let recent_path = most_recent_folder(&Path::new(&folder_to_backup));
+    let recent_path = most_recent_folder(&Path::new(&params.source_folder));
 
     // Run the scp command for the given folder
 
-    let _exit_status = Exec::cmd("sshpass")
-        .arg(folder_to_backup.to_str().unwrap().to_owned())
-        .arg("")
-        .arg("-l")
-        .arg("denis")
+    let source = recent_path.to_str().expect("Impossible to read the most recent folder");
+
+    println!("Found the most recent folder to backup : {} ", &source);
+
+    println!("Sending to {}", &params.target_url );
+
+    // sshpass -p xxxx scp -r Pictures/ dcrespe@10.42.2.17:/home/dcrespe
+    let exit_status = Exec::cmd("sshpass")
+        .arg("-p")
+        .arg(PASS.decrypt(0).as_str())
+        .arg("scp")
+        .arg("-r")
+        .arg(source)
+        .arg(params.target_url)  // dcrespe@10.42.2.17:/home/dcrespe
         .join();
 
 
-    println!("Hello, world! {:?}", &recent_path);
-}
+    println!("Sending Done, status {:?}", &exit_status);
 
-
-/**
-    Return the help text.
-*/
-fn show_help() -> &'static str {
-
-    "
-    Remote Backup v0.9.0
-
-    remote-backup -f <folder>
-
-        -f <folder>   Folder to backup
-
-    simple-backup -h
-
-        -h  Show this help file.
-"
-
+    Ok(())
 }

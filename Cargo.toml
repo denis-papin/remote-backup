@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies]
 chrono = "0.4.10"
+clap = "2.33"
+subprocess = "0.2.4"
+obfstr = "0.1.1"
