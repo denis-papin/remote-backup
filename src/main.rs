@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime,UNIX_EPOCH};
 use std::ops::Sub;
 use chrono::{DateTime, Local, TimeZone, Duration};
+use obfstr::obfstr;
 use subprocess::Exec;
 
 mod arg_params;
@@ -64,9 +65,12 @@ fn system_time_to_date_time(t: SystemTime) -> DateTime<Local> {
     Local.timestamp(sec, nsec)
 }
 
-static PASS : obfstr::ObfString<[u8; 21]> = obfstr::obfconst!( "il faut viser la lune" );
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+    // TODO Replace this with an cypher obfuscated string, and use a crypto lib to decrypt it.
+    let pass = String::from(obfstr!("il faut viser la lune"));
 
     let params = parse_args()?;
 
@@ -84,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // sshpass -p xxxx scp -r Pictures/ dcrespe@10.42.2.17:/home/dcrespe
     let exit_status = Exec::cmd("sshpass")
         .arg("-p")
-        .arg(PASS.decrypt(0).as_str())
+        .arg(&pass)
         .arg("scp")
         .arg("-r")
         .arg(source)
